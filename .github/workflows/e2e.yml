@@ -1,0 +1,67 @@
+name: Full Stack E2E (Playwright)
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout FRONTEND
+      - name: Checkout frontend
+        uses: actions/checkout@v4
+
+      # 2️⃣ Checkout BACKEND
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          repository: sahilMahadik2002/backend-sample
+          path: backend
+
+      # 3️⃣ Setup Node
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      # 4️⃣ Setup backend (Prisma)
+      - name: Install backend deps
+        working-directory: backend/apps/api/server
+        run: npm install
+
+      - name: Prisma setup
+        working-directory: backend/apps/api
+        env:
+          DATABASE_URL: "file:./test.db"
+        run: |
+          npx prisma generate
+          npx prisma migrate deploy
+
+      - name: Start backend
+        working-directory: backend/apps/api
+        env:
+          DATABASE_URL: "file:./test.db"
+          JWT_SECRET: dxLmhnE0pRY2+vUlu+i5Pxh8LTxLBTgBWdp82W74mMs=
+          PORT: 3000
+        run: |
+          npm run dev &
+          sleep 10
+
+      # 5️⃣ Setup frontend
+      - name: Install frontend deps
+        run: npm install
+
+      - name: Set API URL for frontend
+        run: echo "REACT_APP_API_ROOT=http://localhost:4100/api" >> $GITHUB_ENV
+
+      - name: Start frontend
+        run: |
+          npm start &
+          sleep 15
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Run Playwright
+        run: npx playwright test
