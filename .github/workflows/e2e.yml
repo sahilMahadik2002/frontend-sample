@@ -44,7 +44,7 @@ jobs:
       #     npm run dev &
       #     sleep 10
 
-      - name: Install frontend deps
+      - name: Install frontend dependencies
         run: npm install
 
       - name: Set API URL for frontend
@@ -59,4 +59,13 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright
-        run: npx playwright test
+        run: npx playwright test & sleep 10
+
+      - name: Create build for deployment
+        run: npm run build
+
+      - name: Upload build to artifact (pipeline storage)
+        uses: actions/upload-artifact@v4 # github official artifact uploader
+        with:
+          name: sample-app-build
+          path: build
