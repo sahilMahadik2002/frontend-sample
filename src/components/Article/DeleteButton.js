@@ -21,7 +21,7 @@ const DeleteButton = props => {
       </span>
     );
   }
-  return null;
+  return null; 
 };
 
 export default connect(() => ({}), mapDispatchToProps)(DeleteButton);
