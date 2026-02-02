@@ -1,71 +1,47 @@
-name: Full Stack E2E (Playwright)
+name: Build and Push Docker Image to ECR
 
 on:
   push:
-  pull_request:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ap-south-1
+  ECR_REPOSITORY: sample-frontend-repository
+  IMAGE_TAG: latest
 
 jobs:
-  e2e:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout frontend
+      - name: Checkout source code
         uses: actions/checkout@v4
 
-      # - name: Checkout backend
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: sahilMahadik2002/backend-sample
-      #     path: backend
-
-      # - uses: actions/setup-node@v4
-      #   with:
-      #     node-version: 18
-
-      # - name: Install backend deps
-      #   working-directory: backend/apps/api/server
-      #   run: npm install
-
-      # - name: Prisma setup
-      #   working-directory: backend/apps/api
-      #   env:
-      #     DATABASE_URL: "file:./test.db"
-      #   run: |
-      #     npx prisma generate
-      #     npx prisma migrate deploy
-
-      # - name: Start backend
-      #   working-directory: backend/apps/api
-      #   env:
-      #     DATABASE_URL: "file:./test.db"
-      #     JWT_SECRET: dxLmhnE0pRY2+vUlu+i5Pxh8LTxLBTgBWdp82W74mMs=
-      #     PORT: 3000
-      #   run: |
-      #     npm run dev &
-      #     sleep 10
-
-      - name: Install frontend dependencies
-        run: npm install
-
-      - name: Set API URL for frontend
-        run: echo "REACT_APP_API_ROOT=http://localhost:4100/api" >> $GITHUB_ENV
-
-      - name: Start frontend
-        run: |
-          npm start &
-          sleep 15
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
-
-      - name: Run Playwright
-        run: npx playwright test & sleep 10
-
-      - name: Create build for deployment
-        run: npm run build
-
-      - name: Upload build to artifact (pipeline storage)
-        uses: actions/upload-artifact@v4 # github official artifact uploader
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: sample-app-build
-          path: build
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build Docker image
+        run: |
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+
+      - name: Tag Docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+      - name: Push Docker image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
